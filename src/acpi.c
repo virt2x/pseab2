@@ -12,6 +12,8 @@
 #include "pci_regs.h" // PCI_INTERRUPT_LINE
 #include "ioport.h" // inl
 #include "paravirt.h"
+#include "acpi-tpm-ssdt.aml"
+#include "tcgbios.h" // has_working_tpm
 
 /****************************************************/
 /* ACPI tables init */
@@ -717,6 +719,40 @@ static const struct pci_device_id acpi_find_tbl[] = {
     PCI_DEVICE_END,
 };
 
+
+static u32 add_tpm_device(void **tpm_addr, void **tcpa_addr)
+{
+    struct tcpa_descriptor_rev2 *tcpa;
+
+    *tpm_addr = NULL;
+    *tcpa_addr = NULL;
+
+    if (has_working_tpm()) {
+        u32 laml = 64 * 1024;
+        *tpm_addr = malloc_high(sizeof(AmlCode_TPM));
+
+        tcpa = malloc_high(sizeof(*tcpa) + laml);
+        if (!tcpa || !*tpm_addr) {
+            warn_noalloc();
+            return 1;
+        }
+
+        if (*tpm_addr)
+            memcpy(*tpm_addr, AmlCode_TPM, sizeof(AmlCode_TPM));
+
+        memset(tcpa, 0x0, sizeof(*tcpa) + laml);
+        u64 lasa = (u32)tcpa + sizeof(*tcpa);
+
+        tcpa->laml = laml;
+        tcpa->lasa = lasa;
+        build_header((void*)tcpa, TCPA_SIGNATURE, sizeof(*tcpa), 2);
+
+        *tcpa_addr = tcpa;
+    }
+    return 0;
+}
+
+
 struct rsdp_descriptor *RsdpAddr;
 
 #define MAX_ACPI_TABLES 20
@@ -767,6 +803,7 @@ acpi_bios_init(void)
             if (fadt) {
                 fill_dsdt(fadt, addr);
             }
+
         } else {
             ACPI_INIT_TABLE(header);
         }
@@ -785,6 +822,11 @@ acpi_bios_init(void)
         memcpy(dsdt, AmlCode, sizeof(AmlCode));
         fill_dsdt(fadt, dsdt);
     }
+    void *tcpa, *tpm;
+    if (add_tpm_device(&tpm, &tcpa))
+        return;
+    ACPI_INIT_TABLE(tpm);
+    ACPI_INIT_TABLE(tcpa);
 
     // Build final rsdt table
     struct rsdt_descriptor_rev1 *rsdt;

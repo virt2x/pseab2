@@ -166,11 +166,6 @@ init_bios_tables(void)
         coreboot_copy_biostable();
         return;
     }
-    if (usingXen()) {
-        xen_copy_biostables();
-        return;
-    }
-
     create_pirtable();
 
     mptable_init();

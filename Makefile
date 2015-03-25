@@ -18,7 +18,7 @@ SRC16=$(SRCBOTH) system.c disk.c font.c
 SRC32FLAT=$(SRCBOTH) post.c shadow.c memmap.c coreboot.c boot.c \
     acpi.c smm.c mptable.c smbios.c pciinit.c optionroms.c mtrr.c \
     lzmadecode.c bootsplash.c jpeg.c usb-hub.c paravirt.c \
-    biostables.c xen.c bmp.c romfile.c
+    biostables.c xen.c bmp.c romfile.c tcgbios.c tpm_drivers.c
 SRC32SEG=util.c output.c pci.c pcibios.c apm.c stacks.c
 
 # Default compiler flags
@@ -223,6 +223,14 @@ $(OUT)vgabios.bin: $(OUT)vgabios.bin.raw tools/buildrom.py
 
 iasl-option=$(shell if test -z "`$(1) $(2) 2>&1 > /dev/null`" \
     ; then echo "$(2)"; else echo "$(3)"; fi ;)
+
+src/acpi-tpm-ssdt.aml: src/acpi-tpm-ssdt.dsl
+	@echo "Compiling TPM SSDT"
+	$(Q)cpp -P $< > $(OUT)$*.dsl.i
+	$(Q)iasl -tc -p $(OUT)$* $(OUT)$*.dsl.i
+	$(Q)cp $(OUT)$*.hex $@
+	$(Q)sed -i 's/AmlCode/AmlCode_TPM/' $@
+
 
 $(OUT)%.hex: src/%.dsl ./tools/acpi_extract_preprocess.py ./tools/acpi_extract.py
 	@echo "  Compiling IASL $@"

@@ -107,4 +107,23 @@ struct bfld {
     u64 p1l;  /* pci window 1 (above 4g) - length */
 } PACKED;
 
+
+struct rsdt_descriptor {
+    ACPI_TABLE_HEADER_DEF
+    u32 entry[1];
+} PACKED;
+
+#define TCPA_SIGNATURE 0x41504354
+struct tcpa_descriptor_rev2
+{
+    ACPI_TABLE_HEADER_DEF
+    u16  platform_class;
+    u32  laml;
+    u64  lasa;
+} PACKED;
+
+/* TCPA ACPI definitions */
+#define TCPA_ACPI_CLASS_CLIENT          0
+#define TCPA_ACPI_CLASS_SERVER          1
+
 #endif // acpi.h
